@@ -1,0 +1,58 @@
+name: Rakenna Android APK
+
+# Kääntää testattavan debug-APK:n. Käynnistyy jokaisella pushilla sekä
+# manuaalisesti (workflow_dispatch) GitHubin Actions-välilehdeltä.
+on:
+  push:
+    branches:
+      - claude/sprint-false-start-detection-yl6gs6
+      - main
+  workflow_dispatch: # Sallii käynnistyksen käsin "Run workflow" -painikkeella.
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hae koodi
+        uses: actions/checkout@v4
+
+      - name: Asenna Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Asenna JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Asenna riippuvuudet
+        run: npm ci
+
+      - name: Käännä web-osa
+        run: npm run build
+
+      - name: Luo Android-projekti
+        # android/-kansio ei ole versionhallinnassa, joten se generoidaan tässä.
+        run: npx cap add android
+
+      - name: Lisää kamera- ja mikrofonioikeudet
+        run: node scripts/patch-android-manifest.mjs
+
+      - name: Synkronoi web-build natiiviprojektiin
+        run: npx cap sync android
+
+      - name: Rakenna debug-APK
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Lataa APK artefaktiksi
+        uses: actions/upload-artifact@v4
+        with:
+          name: pikajuoksu-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
