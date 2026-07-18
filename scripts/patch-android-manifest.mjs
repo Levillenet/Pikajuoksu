@@ -12,7 +12,14 @@ const manifestPath = 'android/app/src/main/AndroidManifest.xml';
 const permissions = [
   '<uses-permission android:name="android.permission.CAMERA" />',
   '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
-  '<uses-feature android:name="android.hardware.camera" android:required="true" />',
+  // MODIFY_AUDIO_SETTINGS on pakollinen: Capacitorin WebView vaatii sen
+  // getUserMedia-äänikaappaukselle. Ilman tätä koko kamera+mikki-pyyntö
+  // hylätään "Permission denied" -virheellä, vaikka kamera ja mikrofoni
+  // näkyisivät jo sallittuina laitteen asetuksissa.
+  '<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />',
+  // Kamera ei ole pakollinen laitevaatimus (required=false) → asennus onnistuu
+  // myös laajemmalla laitejoukolla.
+  '<uses-feature android:name="android.hardware.camera" android:required="false" />',
 ];
 
 let xml = readFileSync(manifestPath, 'utf8');
