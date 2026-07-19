@@ -55,9 +55,11 @@ export class WhistleDetector {
     // yleinen laaja kaista konfiguraatiosta (varajärjestely).
     const minFreq = this.profile ? this.profile.centerFreqHz - this.profile.toleranceHz : this.cfg.minFreqHz;
     const maxFreq = this.profile ? this.profile.centerFreqHz + this.profile.toleranceHz : this.cfg.maxFreqHz;
-    // Turvarajaus myös vanhoille profiileille: pidä kynnys järkevällä välillä.
+    // Turvarajaus: pidä kynnys välillä 5–28 dB. Matala alaraja sallii
+    // matalatasoiset mikrofonit; väärät laukaisut estetään "hallitseva huippu"
+    // -vaatimuksella, ei tällä kynnyksellä.
     const thresholdDb = this.profile
-      ? Math.min(28, Math.max(12, this.profile.minProminenceDb))
+      ? Math.min(28, Math.max(5, this.profile.minProminenceDb))
       : this.cfg.thresholdDb;
     const minDurationMs = this.profile ? this.profile.minDurationMs : this.cfg.minDurationMs;
 
