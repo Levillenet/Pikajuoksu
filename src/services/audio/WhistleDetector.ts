@@ -16,6 +16,13 @@ import type { WhistleProfile } from '@/models/audioProfile';
 export class WhistleDetector {
   private readonly cfg = AppConfig.audio.whistle;
 
+  /**
+   * Kuinka lähellä koko spektrin globaalia huippua opetetun kaistan huipun on
+   * oltava (dB), jotta ääni lasketaan pilliksi. Pieni marginaali = pillin on
+   * oltava selvästi hallitseva sävel.
+   */
+  private static readonly DOMINANCE_MARGIN_DB = 5;
+
   /** Aikaleima (ms), jolloin sävel alkoi ylittää kynnyksen. */
   private toneStartMs: number | null = null;
   /** Aikaleima (ms) viimeisimmästä hyväksytystä havainnosta (jäähdytys). */
@@ -48,7 +55,10 @@ export class WhistleDetector {
     // yleinen laaja kaista konfiguraatiosta (varajärjestely).
     const minFreq = this.profile ? this.profile.centerFreqHz - this.profile.toleranceHz : this.cfg.minFreqHz;
     const maxFreq = this.profile ? this.profile.centerFreqHz + this.profile.toleranceHz : this.cfg.maxFreqHz;
-    const thresholdDb = this.profile ? this.profile.minProminenceDb : this.cfg.thresholdDb;
+    // Turvarajaus myös vanhoille profiileille: pidä kynnys järkevällä välillä.
+    const thresholdDb = this.profile
+      ? Math.min(28, Math.max(12, this.profile.minProminenceDb))
+      : this.cfg.thresholdDb;
     const minDurationMs = this.profile ? this.profile.minDurationMs : this.cfg.minDurationMs;
 
     const minBin = Math.max(0, Math.floor(minFreq / binHz));
@@ -60,7 +70,8 @@ export class WhistleDetector {
       if (freqDb[i] > peakDb) peakDb = freqDb[i];
     }
 
-    // Arvioi taustataso (mediaani koko spektristä approksimoituna keskiarvolla).
+    // Etsi koko spektrin globaali huippu sekä taustataso (keskiarvo).
+    let globalPeakDb = -Infinity;
     let sum = 0;
     let count = 0;
     for (let i = 0; i < freqDb.length; i++) {
@@ -68,12 +79,19 @@ export class WhistleDetector {
       if (Number.isFinite(freqDb[i])) {
         sum += freqDb[i];
         count++;
+        if (freqDb[i] > globalPeakDb) globalPeakDb = freqDb[i];
       }
     }
     const background = count > 0 ? sum / count : -100;
     const prominence = peakDb - background;
 
-    const aboveThreshold = prominence >= thresholdDb;
+    // Hallitseva huippu: pillin taajuuden on oltava koko spektrin voimakkain
+    // (pieni marginaali). Tämä on ratkaiseva ero pilliin nähden – taustahäly,
+    // puhe tai yskäisy eivät ole tonaalisia juuri opetetulla taajuudella,
+    // joten niiden voimakkain taajuus on muualla → ei laukaise tallennusta.
+    const dominant = peakDb >= globalPeakDb - WhistleDetector.DOMINANCE_MARGIN_DB;
+
+    const aboveThreshold = prominence >= thresholdDb && dominant;
 
     if (aboveThreshold) {
       // Sävel jatkuu tai alkaa.

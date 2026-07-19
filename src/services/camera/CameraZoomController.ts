@@ -98,31 +98,45 @@ export class CameraZoomController {
     return unique.sort((a, b) => a - b);
   }
 
-  /** Asettaa zoom-tason (rajataan laitteen sallimaan alueeseen). */
+  /**
+   * Asettaa zoom-tason. Yritetään soveltaa vaikka laite ei ilmoittaisi
+   * zoom-kykyä getCapabilities-rajapinnan kautta – osa Android-WebView'sta
+   * tukee zoomia silti. Jos laite ei tue, kutsu on vaaraton no-op.
+   */
   async setZoom(value: number): Promise<number> {
     if (!this.track) return value;
     const cap = this.getCapability();
-    if (!cap.supported) return value;
-    const clamped = Math.max(cap.min, Math.min(cap.max, value));
+    // Rajaa laitteen alueeseen, tai varovaiseen 1–8× jos kykyä ei ilmoiteta.
+    const min = cap.supported ? cap.min : 1;
+    const max = cap.supported ? cap.max : 8;
+    const clamped = Math.max(min, Math.min(max, value));
     try {
       // advanced-kenttä on laajimmin tuettu tapa asettaa zoom.
       await this.track.applyConstraints({ advanced: [{ zoom: clamped } as unknown as MediaTrackConstraintSet] });
       log.info('Zoom asetettu', { zoom: clamped });
     } catch (err) {
-      log.warn('Zoomin asetus epäonnistui', err);
+      log.warn('Zoomin asetus epäonnistui (laite ei ehkä tue zoomia)', err);
     }
     return clamped;
   }
 
   /**
-   * Asettaa oletuszoomin. Jos laite tukee zoomia ja sallii 1×, valitaan 1×
-   * (normaali kuvakulma) laajakulman sijaan. Palauttaa käytetyn arvon.
+   * Asettaa oletuszoomin 1×:ään (normaali kuvakulma) laajakulman sijaan.
+   * Yritetään aina, koska juuri laajakulmaoletus on ongelma.
    */
   async applyDefaultZoom(): Promise<number> {
+    return this.setZoom(1);
+  }
+
+  /**
+   * Palauttaa käyttöliittymään näytettävät zoom-tasot. Jos laite ilmoittaa
+   * oikeat rajat, käytetään niitä; muuten tarjotaan yleiset tasot (1×, 2×, 3×)
+   * ja yritetään soveltaa niitä silti.
+   */
+  getPresetsForUi(): number[] {
     const cap = this.getCapability();
-    if (!cap.supported) return cap.current;
-    const desired = Math.min(Math.max(1, cap.min), cap.max);
-    return this.setZoom(desired);
+    if (cap.supported && cap.presets.length > 1) return cap.presets;
+    return [1, 2, 3];
   }
 
   detach(): void {

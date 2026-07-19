@@ -103,11 +103,13 @@ export class RecordingViewModel extends Observable<RecordingState> {
       // (normaali kuvakulma). Käyttäjä voi vaihtaa tasoa UI:sta.
       this.zoom.attach(this.sharedStream);
       const applied = await this.zoom.applyDefaultZoom();
-      const cap = this.zoom.getCapability();
+      // Näytä zoom-valitsin aina kameran ollessa päällä. Käytä laitteen
+      // ilmoittamia tasoja jos saatavilla, muuten yleisiä tasoja – ja yritä
+      // soveltaa niitä silti (osa laitteista tukee zoomia ilmoittamatta sitä).
       this.setState({
-        zoomSupported: cap.supported,
-        zoomLevel: applied,
-        zoomPresets: cap.presets,
+        zoomSupported: true,
+        zoomLevel: applied || 1,
+        zoomPresets: this.zoom.getPresetsForUi(),
       });
 
       // Käynnistä äänentunnistus samasta striimistä opetetuilla profiileilla.

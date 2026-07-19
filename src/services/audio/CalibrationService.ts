@@ -60,7 +60,9 @@ export class CalibrationService {
       const prominence = peakDb - background;
 
       // Talteen vain selvästi taustan yli nousevat kehykset (tonaalinen ääni).
-      if (peakBin >= 0 && prominence >= 8) {
+      // Korkea kynnys (12 dB) varmistaa, että opitaan aito pillin sävel eikä
+      // taustahälyä → estää vääriä laukaisuja käytössä.
+      if (peakBin >= 0 && prominence >= 12) {
         peakFreqs.push(peakBin * binHz);
         prominences.push(prominence);
       }
@@ -68,8 +70,9 @@ export class CalibrationService {
 
     await this.closeMic(ctx, stream);
 
-    if (peakFreqs.length < 5) {
-      throw new Error('Pilliä ei tunnistettu. Vihellä selkeästi ja yritä uudelleen.');
+    // Vaadi riittävästi yhtäjaksoisia vahvoja kehyksiä (~0,2 s pilliä).
+    if (peakFreqs.length < 12) {
+      throw new Error('Pilliä ei tunnistettu selkeästi. Vihellä pitkä, tasainen ääni ja yritä uudelleen.');
     }
 
     const centerFreqHz = this.median(peakFreqs);
@@ -78,9 +81,9 @@ export class CalibrationService {
       centerFreqHz: Math.round(centerFreqHz),
       // Kaista ±6 % sävelkorkeudesta (väh. 120 Hz) sallii pienen vaihtelun.
       toleranceHz: Math.max(120, Math.round(centerFreqHz * 0.06)),
-      // Vaadi hieman opittua matalampi prominenssi, jotta tunnistus on varma
-      // mutta ei liian herkkä.
-      minProminenceDb: Math.max(10, Math.round(medianProm * 0.7)),
+      // Rajaa prominenssikynnys järkevälle välille (14–28 dB): riittävän tiukka
+      // ettei taustahäly laukaise, mutta saavutettavissa aidolle pillille.
+      minProminenceDb: Math.min(28, Math.max(14, Math.round(medianProm * 0.7))),
       minDurationMs: AppConfig.audio.whistle.minDurationMs,
     };
     log.info('Pilli opetettu', profile);
@@ -119,8 +122,11 @@ export class CalibrationService {
     const ratio = backgroundRms > 1e-4 ? maxRms / backgroundRms : 8;
     const profile: GunshotProfile = {
       refRms: Math.round(maxRms * 1000) / 1000,
-      // Vaadi selvä nousu taustaan nähden, väh. 4× (rajaa taputukset pois).
-      onsetRatio: Math.max(4, Math.round(ratio * 0.6)),
+      // Rajaa nousukynnys välille 4–8×. Opetushetkellä tausta on usein hyvin
+      // hiljainen, jolloin laskettu suhde kasvaa valtavaksi ja tekisi
+      // tunnistuksesta käytännössä mahdotonta. Kova yläraja pitää laukauksen
+      // tunnistettavana myös kentällä.
+      onsetRatio: Math.min(8, Math.max(4, Math.round(ratio * 0.5))),
     };
     log.info('Pistooli opetettu', profile);
     return profile;

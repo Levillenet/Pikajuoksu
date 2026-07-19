@@ -57,10 +57,13 @@ export class GunshotDetector {
       return null;
     }
 
-    // Käytä opetettuja arvoja, jos profiili on asetettu. Vaadi vähintään
-    // puolet opitusta huippuvoimakkuudesta (rajaa hiljaisemmat äänet pois).
-    const onsetRatio = this.profile ? this.profile.onsetRatio : this.cfg.onsetRatio;
-    const minRms = this.profile ? Math.max(this.cfg.minRms, this.profile.refRms * 0.5) : this.cfg.minRms;
+    // Käytä opetettuja arvoja, jos profiili on asetettu. Vaadi noin kolmasosa
+    // opitusta huippuvoimakkuudesta – riittää erottamaan laukauksen taustasta,
+    // mutta tunnistaa myös hieman hiljaisemman toiston (esim. testissä "PAM").
+    // Turvarajaus myös vanhoille tallennetuille profiileille: onsetRatio ei saa
+    // kasvaa niin suureksi, ettei laukausta koskaan tunnisteta.
+    const onsetRatio = this.profile ? Math.min(8, Math.max(4, this.profile.onsetRatio)) : this.cfg.onsetRatio;
+    const minRms = this.profile ? Math.max(0.06, this.profile.refRms * 0.35) : this.cfg.minRms;
 
     const ratio = this.runningAvg > 1e-6 ? rms / this.runningAvg : Infinity;
     const cooledDown = nowMs - this.lastDetectionMs >= this.cfg.cooldownMs;
