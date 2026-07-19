@@ -29,6 +29,9 @@ repositories {
 
 dependencies {
     implementation project(':capacitor-android')
+    // AppCompat tarvitaan, koska Capacitorin Plugin.getActivity() on tyyppiä
+    // AppCompatActivity. Versio juuriprojektista jos saatavilla.
+    implementation "androidx.appcompat:appcompat:${rootProject.ext.has('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.7.0'}"
     implementation "androidx.core:core-ktx:1.13.1"
     implementation "com.google.android.gms:play-services-nearby:19.3.0"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
