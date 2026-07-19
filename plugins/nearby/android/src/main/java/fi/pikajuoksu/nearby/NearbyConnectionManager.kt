@@ -2,6 +2,8 @@ package fi.pikajuoksu.nearby
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.getcapacitor.JSObject
 import com.google.android.gms.nearby.Nearby
@@ -25,18 +27,13 @@ import java.io.FileOutputStream
 /**
  * NearbyConnectionManager kapseloi KAIKEN Google Nearby Connections -logiikan.
  *
- * Se hoitaa:
- *  - Advertisingin (Camera) ja Discoveryn (Viewer)
- *  - yhteyksien automaattisen hyväksynnän ja valvonnan
- *  - viestien (BYTES) ja videotiedostojen (FILE) siirron
- *  - siirron etenemisen raportoinnin
+ * Itsekorjautuva: yrittää käynnistää mainostuksen (Camera) tai etsinnän
+ * (Viewer) toistuvasti, kunnes yhteys syntyy. Näin yhteys muodostuu vaikka
+ * käyttöoikeudet myönnettäisiin vasta ensimmäisen yrityksen jälkeen tai
+ * sijaintipalvelu käynnistettäisiin hetkeä myöhemmin.
  *
  * Ei internetiä, IP-osoitteita, QR-koodeja eikä manuaalista määritystä.
- * Strategia P2P_STAR sallii myöhemmin usean kameran liittymisen yhteen
- * Vieweriin ilman uudelleenkirjoitusta.
- *
- * Kaikki tila muutetaan pääsäikeessä; Nearby-callbackit tulevat pääsäikeeseen.
- * Tapahtumat välitetään JS-kerrokseen [emit]-lambdan kautta.
+ * Strategia P2P_STAR sallii usean kameran liittymisen yhteen Vieweriin.
  */
 class NearbyConnectionManager(
     private val context: Context,
@@ -45,54 +42,51 @@ class NearbyConnectionManager(
     companion object {
         private const val TAG = "NearbyConnManager"
         private val STRATEGY = Strategy.P2P_STAR
+        private const val RETRY_MS = 5000L
     }
 
     private val client: ConnectionsClient = Nearby.getConnectionsClient(context)
+    private val handler = Handler(Looper.getMainLooper())
 
     /** Yhdistetyt vastapuolet (endpointId -> nimi). */
     private val connected = mutableMapOf<String, String>()
 
+    /** Löydettyjen (ei vielä yhdistettyjen) nimet. */
+    private val discoveredNames = mutableMapOf<String, String>()
+
     /** Odottavat tiedostosiirtojen metatiedot (payloadId -> metadataJson). */
     private val pendingFileMeta = mutableMapOf<Long, String>()
 
-    /** Vastaanotettavat tiedostohyötykuormat (payloadId -> Payload). */
+    /** Vastaanotettavat tiedostohyötykuormat. */
     private val incomingFiles = mutableMapOf<Long, Payload>()
 
     private var localName: String = "FSD"
     private var serviceId: String = "fi.pikajuoksu.startwatch.nearby"
     private var role: String = "" // "camera" | "viewer"
+    private var advertising = false
+    private var discovering = false
+    private var retryScheduled = false
 
-    // ---- Julkinen rajapinta (pluginin kutsumat) ----
+    // ---- Julkinen rajapinta ----
 
     fun startAdvertising(name: String, service: String) {
         localName = name
         serviceId = service
         role = "camera"
-        val options = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
-        client.startAdvertising(localName, serviceId, connectionLifecycle, options)
-            .addOnSuccessListener { Log.i(TAG, "Advertising käynnissä") }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Advertising epäonnistui", e)
-                emitStatus()
-            }
-        emitStatus()
+        ensureRunning()
     }
 
     fun startDiscovery(name: String, service: String) {
         localName = name
         serviceId = service
         role = "viewer"
-        val options = DiscoveryOptions.Builder().setStrategy(STRATEGY).build()
-        client.startDiscovery(serviceId, endpointDiscovery, options)
-            .addOnSuccessListener { Log.i(TAG, "Discovery käynnissä") }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Discovery epäonnistui", e)
-                emitStatus()
-            }
-        emitStatus()
+        ensureRunning()
     }
 
     fun stop() {
+        role = ""
+        advertising = false
+        discovering = false
         try {
             client.stopAdvertising()
             client.stopDiscovery()
@@ -101,25 +95,17 @@ class NearbyConnectionManager(
             Log.w(TAG, "stop() virhe", e)
         }
         connected.clear()
+        discoveredNames.clear()
         pendingFileMeta.clear()
         incomingFiles.clear()
-        role = ""
         emitStatus()
     }
 
-    /** Lähettää lyhyen viestin (BYTES) kaikille yhdistetyille. */
     fun sendMessage(json: String) {
         val payload = Payload.fromBytes(json.toByteArray(Charsets.UTF_8))
-        for (endpointId in connected.keys) {
-            client.sendPayload(endpointId, payload)
-        }
+        for (endpointId in connected.keys) client.sendPayload(endpointId, payload)
     }
 
-    /**
-     * Lähettää videotiedoston. Ensin lähetetään BYTES-otsake, joka sisältää
-     * tiedoston payload-id:n ja metatiedot, sitten itse FILE-hyötykuorma.
-     * Vastaanottaja yhdistää nämä payload-id:n perusteella.
-     */
     fun sendFile(path: String, metadataJson: String) {
         val file = resolveFile(path) ?: run {
             Log.e(TAG, "Tiedostoa ei löytynyt: $path")
@@ -149,19 +135,73 @@ class NearbyConnectionManager(
         return obj
     }
 
+    // ---- Itsekorjautuva käynnistys ----
+
+    /** Käynnistää roolin mukaisen toiminnon, jos se ei ole jo käynnissä. */
+    private fun ensureRunning() {
+        when (role) {
+            "camera" -> if (!advertising) doAdvertise()
+            "viewer" -> if (!discovering) doDiscover()
+        }
+        scheduleTick()
+        emitStatus()
+    }
+
+    private fun doAdvertise() {
+        val options = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
+        client.startAdvertising(localName, serviceId, connectionLifecycle, options)
+            .addOnSuccessListener {
+                advertising = true
+                Log.i(TAG, "Advertising käynnissä")
+                emitStatus()
+            }
+            .addOnFailureListener { e ->
+                advertising = false
+                Log.w(TAG, "Advertising epäonnistui (yritetään uudelleen): ${e.message}")
+            }
+    }
+
+    private fun doDiscover() {
+        val options = DiscoveryOptions.Builder().setStrategy(STRATEGY).build()
+        client.startDiscovery(serviceId, endpointDiscovery, options)
+            .addOnSuccessListener {
+                discovering = true
+                Log.i(TAG, "Discovery käynnissä")
+                emitStatus()
+            }
+            .addOnFailureListener { e ->
+                discovering = false
+                Log.w(TAG, "Discovery epäonnistui (yritetään uudelleen): ${e.message}")
+            }
+    }
+
+    /** Ajastaa uuden yrityksen, kunnes yhteys on muodostunut. */
+    private fun scheduleTick() {
+        if (retryScheduled) return
+        retryScheduled = true
+        handler.postDelayed({
+            retryScheduled = false
+            if (role.isNotEmpty()) {
+                // Yritä (uudelleen)käynnistää, jos toiminto ei ole aktiivinen.
+                ensureRunning()
+            }
+        }, RETRY_MS)
+    }
+
     // ---- Nearby-callbackit ----
 
     private val connectionLifecycle = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
-            // Hyväksy yhteys automaattisesti (ei käyttäjän vahvistusta).
+            discoveredNames[endpointId] = info.endpointName
             client.acceptConnection(endpointId, payloadCallback)
         }
 
         override fun onConnectionResult(endpointId: String, resolution: ConnectionResolution) {
             if (resolution.status.statusCode == ConnectionsStatusCodes.STATUS_OK) {
-                // Nimeä ei aina saada tässä; käytä endpointId:tä varanimenä.
-                connected[endpointId] = connected[endpointId] ?: endpointId
+                connected[endpointId] = discoveredNames[endpointId] ?: endpointId
                 Log.i(TAG, "Yhdistetty: $endpointId")
+            } else {
+                Log.w(TAG, "Yhteys ei onnistunut: ${resolution.status.statusCode}")
             }
             emitStatus()
         }
@@ -169,19 +209,23 @@ class NearbyConnectionManager(
         override fun onDisconnected(endpointId: String) {
             connected.remove(endpointId)
             Log.i(TAG, "Yhteys katkesi: $endpointId")
+            // Jatka etsintää/mainostusta automaattisesti.
+            ensureRunning()
             emitStatus()
         }
     }
 
     private val endpointDiscovery = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            // Viewer löysi kameran → pyydä yhteyttä automaattisesti.
-            connected[endpointId] = info.endpointName
+            if (info.serviceId != serviceId) return
+            discoveredNames[endpointId] = info.endpointName
+            Log.i(TAG, "Kamera löytyi: ${info.endpointName} → pyydetään yhteyttä")
             client.requestConnection(localName, endpointId, connectionLifecycle)
-                .addOnFailureListener { e -> Log.w(TAG, "requestConnection epäonnistui", e) }
+                .addOnFailureListener { e -> Log.w(TAG, "requestConnection epäonnistui: ${e.message}") }
         }
 
         override fun onEndpointLost(endpointId: String) {
+            discoveredNames.remove(endpointId)
             Log.i(TAG, "Endpoint kadonnut: $endpointId")
         }
     }
@@ -200,19 +244,18 @@ class NearbyConnectionManager(
             val transferred = update.bytesTransferred
             val fraction = if (total > 0) transferred.toDouble() / total.toDouble() else 0.0
             val done = update.status != PayloadTransferUpdate.Status.IN_PROGRESS
+            val incoming = incomingFiles.containsKey(update.payloadId)
 
-            // Raportoi eteneminen vain tiedostoille (isot siirrot).
-            if (incomingFiles.containsKey(update.payloadId) || isOutgoingFile(update.payloadId)) {
+            if (incoming || role == "camera") {
                 val ev = JSObject()
                     .put("bytesTransferred", transferred)
                     .put("totalBytes", total)
                     .put("fraction", fraction)
                     .put("done", done)
-                    .put("direction", if (incomingFiles.containsKey(update.payloadId)) "incoming" else "outgoing")
+                    .put("direction", if (incoming) "incoming" else "outgoing")
                 emit("transferProgress", ev)
             }
 
-            // Kun vastaanotettu tiedosto valmistuu, tallenna ja ilmoita.
             if (done && update.status == PayloadTransferUpdate.Status.SUCCESS) {
                 val filePayload = incomingFiles.remove(update.payloadId) ?: return
                 finishIncomingFile(update.payloadId, filePayload)
@@ -228,10 +271,8 @@ class NearbyConnectionManager(
         try {
             val obj = JSONObject(json)
             if (obj.optString("type") == "VIDEO_TRANSFER" && obj.has("payloadId")) {
-                // Otsake: talleta metatiedot tulevaa tiedostoa varten.
                 pendingFileMeta[obj.getLong("payloadId")] = obj.getJSONObject("metadata").toString()
             } else {
-                // Tavallinen protokollaviesti → välitä JS:lle.
                 emit("messageReceived", JSObject().put("json", json))
             }
         } catch (e: Exception) {
@@ -248,28 +289,22 @@ class NearbyConnectionManager(
                     FileOutputStream(dest).use { output -> input.copyTo(output) }
                 }
             } else {
-                // Vanhemmilla laitteilla asJavaFile voi olla käytettävissä.
                 @Suppress("DEPRECATION")
                 filePayload.asFile()?.asJavaFile()?.copyTo(dest, overwrite = true)
             }
             val meta = pendingFileMeta.remove(payloadId) ?: "{}"
-            emit(
-                "fileReceived",
-                JSObject().put("path", dest.absolutePath).put("metadataJson", meta),
-            )
+            emit("fileReceived", JSObject().put("path", dest.absolutePath).put("metadataJson", meta))
             Log.i(TAG, "Tiedosto vastaanotettu: ${dest.absolutePath}")
         } catch (e: Exception) {
             Log.e(TAG, "Vastaanotetun tiedoston tallennus epäonnistui", e)
         }
     }
 
-    /** Ratkaisee JS:stä tulevan polun/URIn File-olioksi. */
     private fun resolveFile(path: String): File? {
         return try {
             when {
                 path.startsWith("file://") -> File(Uri.parse(path).path ?: return null)
                 path.startsWith("content://") -> {
-                    // Kopioi content-URI väliaikaistiedostoon lähetystä varten.
                     val tmp = File(context.cacheDir, "send_${System.currentTimeMillis()}.mp4")
                     context.contentResolver.openInputStream(Uri.parse(path))?.use { input ->
                         FileOutputStream(tmp).use { output -> input.copyTo(output) }
@@ -282,11 +317,6 @@ class NearbyConnectionManager(
             Log.e(TAG, "resolveFile epäonnistui", e)
             null
         }
-    }
-
-    private fun isOutgoingFile(payloadId: Long): Boolean {
-        // Lähtevät tiedostot eivät ole incomingFiles-listassa; karkea heuristiikka.
-        return role == "camera" && !incomingFiles.containsKey(payloadId)
     }
 
     private fun emitStatus() {
