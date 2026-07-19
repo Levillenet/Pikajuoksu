@@ -342,6 +342,81 @@ body {
   transition: width 0.08s linear;
 }
 
+/* ---------- Etusivun linkkipainike ---------- */
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px;
+  margin-top: 4px;
+  text-decoration: underline;
+}
+
+/* ---------- Kalibrointi ---------- */
+.calibration__intro {
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.learn-card {
+  background: var(--bg-elev);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  border-left: 4px solid var(--bg-elev-2);
+}
+.learn-card--done {
+  border-left-color: var(--ok);
+}
+.learn-card--recording {
+  border-left-color: var(--primary);
+}
+.learn-card--error {
+  border-left-color: var(--danger);
+}
+.learn-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.learn-card__head h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.learn-card__recording {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+.learn-card__recording p {
+  margin: 0;
+  font-weight: 600;
+}
+.learn-card__count {
+  font-size: 40px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+}
+.pulse-ring--small {
+  width: 60px;
+  height: 60px;
+  border-width: 2px;
+}
+.calibration__actions {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
 /* ---------- Kirjasto ---------- */
 .empty {
   flex: 1;

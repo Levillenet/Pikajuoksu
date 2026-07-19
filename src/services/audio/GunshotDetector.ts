@@ -1,4 +1,5 @@
 import { AppConfig } from '@/config';
+import type { GunshotProfile } from '@/models/audioProfile';
 
 /**
  * Starttipistoolin laukauksen tunnistin.
@@ -24,6 +25,18 @@ export class GunshotDetector {
   private readonly alpha = 0.05;
 
   /**
+   * Opetettu profiili. Kun asetettu, vaaditaan opittua laukausta vastaava
+   * voimakkuus → taputukset ja muu meteli eivät kelpaa.
+   */
+  private profile: GunshotProfile | null = null;
+
+  /** Asettaa opetetun pistooliprofiilin (tai poistaa sen arvolla null). */
+  setProfile(profile: GunshotProfile | null): void {
+    this.profile = profile;
+    this.reset();
+  }
+
+  /**
    * Käsittelee yhden aikatason kehyksen.
    * @param timeData  Aikatason näytteet välillä -1..1 (getFloatTimeDomainData).
    * @param nowMs  Nykyhetki (monotoninen).
@@ -44,17 +57,22 @@ export class GunshotDetector {
       return null;
     }
 
+    // Käytä opetettuja arvoja, jos profiili on asetettu. Vaadi vähintään
+    // puolet opitusta huippuvoimakkuudesta (rajaa hiljaisemmat äänet pois).
+    const onsetRatio = this.profile ? this.profile.onsetRatio : this.cfg.onsetRatio;
+    const minRms = this.profile ? Math.max(this.cfg.minRms, this.profile.refRms * 0.5) : this.cfg.minRms;
+
     const ratio = this.runningAvg > 1e-6 ? rms / this.runningAvg : Infinity;
     const cooledDown = nowMs - this.lastDetectionMs >= this.cfg.cooldownMs;
 
-    const isOnset = ratio >= this.cfg.onsetRatio && rms >= this.cfg.minRms;
+    const isOnset = ratio >= onsetRatio && rms >= minRms;
 
     let result: number | null = null;
     if (isOnset && cooledDown) {
       this.lastDetectionMs = nowMs;
       // Luottamus perustuu sekä suhteelliseen nousuun että absoluuttiseen tasoon.
-      const ratioScore = Math.min(1, ratio / (this.cfg.onsetRatio * 2));
-      const levelScore = Math.min(1, rms / (this.cfg.minRms * 3));
+      const ratioScore = Math.min(1, ratio / (onsetRatio * 2));
+      const levelScore = Math.min(1, rms / (minRms * 3));
       result = Math.min(1, 0.5 * ratioScore + 0.5 * levelScore);
     }
 

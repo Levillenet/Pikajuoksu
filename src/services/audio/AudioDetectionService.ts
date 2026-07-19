@@ -1,5 +1,6 @@
 import { AppConfig } from '@/config';
 import type { AudioEvent } from '@/models/types';
+import type { AudioProfiles } from '@/models/audioProfile';
 import { EventBus } from '@/utils/Observable';
 import { createLogger } from '@/utils/logger';
 import { nowMonotonic } from '@/utils/time';
@@ -167,6 +168,12 @@ export class AudioDetectionService {
   resetDetectors(): void {
     this.whistleDetector.reset();
     this.gunshotDetector.reset();
+  }
+
+  /** Asettaa opetetut ääniprofiilit tunnistimille ennen valvonnan alkua. */
+  setProfiles(profiles: AudioProfiles): void {
+    this.whistleDetector.setProfile(profiles.whistle);
+    this.gunshotDetector.setProfile(profiles.gunshot);
   }
 
   /** Pysäyttää kuuntelun ja vapauttaa resurssit. */

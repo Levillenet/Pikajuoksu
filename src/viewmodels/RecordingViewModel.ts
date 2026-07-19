@@ -110,8 +110,9 @@ export class RecordingViewModel extends Observable<RecordingState> {
         zoomPresets: cap.presets,
       });
 
-      // Käynnistä äänentunnistus samasta striimistä.
+      // Käynnistä äänentunnistus samasta striimistä opetetuilla profiileilla.
       this.container.audio.resetDetectors();
+      this.container.audio.setProfiles(this.container.profiles.get());
       await this.container.audio.start(this.sharedStream);
       this.container.audio.setListening({ whistle: true, gunshot: false });
 

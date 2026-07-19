@@ -1,4 +1,6 @@
 import { AudioDetectionService } from './audio/AudioDetectionService';
+import { AudioProfileStore } from './audio/AudioProfileStore';
+import { CalibrationService } from './audio/CalibrationService';
 import { RecordingRepository } from './storage/RecordingRepository';
 import { StorageService } from './storage/StorageService';
 import { MultiCameraSyncService } from './sync/MultiCameraSyncService';
@@ -19,6 +21,10 @@ export class ServiceContainer {
   readonly repository = new RecordingRepository(this.storage);
   readonly audio = new AudioDetectionService();
   readonly sync = new MultiCameraSyncService();
+  /** Opetettujen ääniprofiilien tallennus (pilli + pistooli). */
+  readonly profiles = new AudioProfileStore();
+  /** Äänten opettaminen (kalibrointi). */
+  readonly calibration = new CalibrationService();
 
   /** Tehdas pose-moottorille (oletuksena MediaPipe). Vaihdettavissa. */
   createPoseEngine(): PoseEngine {

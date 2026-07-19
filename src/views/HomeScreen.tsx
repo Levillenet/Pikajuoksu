@@ -1,11 +1,16 @@
 import type { AppViewModel } from '@/viewmodels/AppViewModel';
+import type { ServiceContainer } from '@/services/container';
 
 /**
- * Etusivu. Vaatimuksen mukaan vain kaksi painiketta: VALMIS ja VIDEOT.
- * Yksinkertaisuus on tarkoituksellista – lähettäjän on löydettävä toiminto
- * välittömästi ilman opettelua.
+ * Etusivu. Kaksi päätoimintoa: VALMIS ja VIDEOT.
+ *
+ * Opetus on pakollinen: jos pilliä ja pistoolia ei ole vielä opetettu, VALMIS
+ * ohjaa ensin opetusnäyttöön. Kun äänet on opetettu, VALMIS aloittaa valvonnan
+ * suoraan ja opetuksen voi tarvittaessa uusia erillisestä linkistä.
  */
-export function HomeScreen({ app }: { app: AppViewModel }) {
+export function HomeScreen({ app, container }: { app: AppViewModel; container: ServiceContainer }) {
+  const calibrated = container.profiles.isComplete();
+
   return (
     <div className="screen home">
       <header className="home__brand">
@@ -14,17 +19,36 @@ export function HomeScreen({ app }: { app: AppViewModel }) {
       </header>
 
       <div className="home__actions">
-        <button className="btn btn--primary btn--huge" onClick={() => app.goRecording()}>
-          VALMIS
-        </button>
+        {calibrated ? (
+          <button className="btn btn--primary btn--huge" onClick={() => app.goRecording()}>
+            VALMIS
+          </button>
+        ) : (
+          <button className="btn btn--primary btn--huge" onClick={() => app.goCalibration()}>
+            OPETA ÄÄNET
+          </button>
+        )}
         <button className="btn btn--secondary btn--huge" onClick={() => app.goLibrary()}>
           VIDEOT
         </button>
       </div>
 
       <footer className="home__hint">
-        Paina <strong>VALMIS</strong> ennen kilpailua – sovellus tunnistaa pillin ja tallentaa
-        lähdön automaattisesti.
+        {calibrated ? (
+          <>
+            Paina <strong>VALMIS</strong> ennen kilpailua – sovellus tunnistaa pillin ja tallentaa
+            lähdön automaattisesti.
+            <br />
+            <button className="link-btn" onClick={() => app.goCalibration()}>
+              Opeta äänet uudelleen
+            </button>
+          </>
+        ) : (
+          <>
+            Ennen ensimmäistä käyttöä opeta sovellukselle <strong>pillin</strong> ja{' '}
+            <strong>starttipistoolin</strong> äänet. Paina <strong>OPETA ÄÄNET</strong>.
+          </>
+        )}
       </footer>
     </div>
   );

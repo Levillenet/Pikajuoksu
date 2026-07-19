@@ -3,6 +3,7 @@ import { container } from './services/container';
 import { AppViewModel } from './viewmodels/AppViewModel';
 import { useViewModel } from './viewmodels/useViewModel';
 import { HomeScreen } from './views/HomeScreen';
+import { CalibrationScreen } from './views/CalibrationScreen';
 import { RecordingScreen } from './views/RecordingScreen';
 import { LibraryScreen } from './views/LibraryScreen';
 import { PlayerScreen } from './views/PlayerScreen';
@@ -19,7 +20,9 @@ export function App() {
 
   switch (screen.name) {
     case 'home':
-      return <HomeScreen app={app} />;
+      return <HomeScreen app={app} container={container} />;
+    case 'calibration':
+      return <CalibrationScreen app={app} container={container} />;
     case 'recording':
       return <RecordingScreen app={app} container={container} />;
     case 'library':
@@ -27,6 +30,6 @@ export function App() {
     case 'player':
       return <PlayerScreen app={app} container={container} recordingId={screen.recordingId} />;
     default:
-      return <HomeScreen app={app} />;
+      return <HomeScreen app={app} container={container} />;
   }
 }
