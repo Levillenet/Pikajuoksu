@@ -19,6 +19,10 @@ export interface CalibrationState {
   gunshotLevel: number | null;
   /** Laskuri opetuksen aikana (ms jäljellä). */
   countdownMs: number;
+  /** Reaaliaikainen mikrofonitaso 0..1 opetuksen aikana (näkyvä palaute). */
+  liveLevel: number;
+  /** Reaaliaikainen kuultu taajuus (Hz) opetuksen aikana. */
+  liveFreqHz: number | null;
   /** Virheviesti. */
   error: string | null;
   /** Onko molemmat opetettu → sovellus käyttövalmis. */
@@ -38,6 +42,8 @@ export class CalibrationViewModel extends Observable<CalibrationState> {
       whistleFreqHz: profiles.whistle?.centerFreqHz ?? null,
       gunshotLevel: profiles.gunshot?.refRms ?? null,
       countdownMs: 0,
+      liveLevel: 0,
+      liveFreqHz: null,
       error: null,
       complete: container.profiles.isComplete(),
     });
@@ -46,16 +52,17 @@ export class CalibrationViewModel extends Observable<CalibrationState> {
   /** Opettaa pillin: käyttäjää pyydetään viheltämään opetuksen ajan. */
   async teachWhistle(): Promise<void> {
     if (this.state.whistleStatus === 'recording') return;
-    this.setState({ whistleStatus: 'recording', error: null });
+    this.setState({ whistleStatus: 'recording', error: null, liveLevel: 0, liveFreqHz: null });
     try {
-      const profile: WhistleProfile = await this.container.calibration.learnWhistle((left) =>
-        this.setState({ countdownMs: left })
+      const profile: WhistleProfile = await this.container.calibration.learnWhistle((p) =>
+        this.setState({ countdownMs: p.msLeft, liveLevel: p.level, liveFreqHz: p.freqHz })
       );
       this.container.profiles.saveWhistle(profile);
       this.setState({
         whistleStatus: 'done',
         whistleFreqHz: profile.centerFreqHz,
         countdownMs: 0,
+        liveLevel: 0,
         complete: this.container.profiles.isComplete(),
       });
       log.info('Pilli opetettu', profile);
@@ -68,16 +75,17 @@ export class CalibrationViewModel extends Observable<CalibrationState> {
   /** Opettaa pistoolin: käyttäjää pyydetään laukaisemaan opetuksen aikana. */
   async teachGunshot(): Promise<void> {
     if (this.state.gunshotStatus === 'recording') return;
-    this.setState({ gunshotStatus: 'recording', error: null });
+    this.setState({ gunshotStatus: 'recording', error: null, liveLevel: 0, liveFreqHz: null });
     try {
-      const profile: GunshotProfile = await this.container.calibration.learnGunshot((left) =>
-        this.setState({ countdownMs: left })
+      const profile: GunshotProfile = await this.container.calibration.learnGunshot((p) =>
+        this.setState({ countdownMs: p.msLeft, liveLevel: p.level, liveFreqHz: p.freqHz })
       );
       this.container.profiles.saveGunshot(profile);
       this.setState({
         gunshotStatus: 'done',
         gunshotLevel: profile.refRms,
         countdownMs: 0,
+        liveLevel: 0,
         complete: this.container.profiles.isComplete(),
       });
       log.info('Pistooli opetettu', profile);

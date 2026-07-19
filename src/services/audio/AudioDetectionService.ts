@@ -80,7 +80,9 @@ export class AudioDetectionService {
 
       const AudioCtx =
         window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.audioContext = new AudioCtx({ sampleRate: AppConfig.audio.targetSampleRate });
+      // EI pakotettua näytteenottotaajuutta – laitteen oma taajuus on
+      // luotettavampi (pakottaminen voi tuottaa hiljaisuutta osalla laitteista).
+      this.audioContext = new AudioCtx();
 
       // iOS vaatii resume-kutsun käyttäjän eleen jälkeen.
       if (this.audioContext.state === 'suspended') {

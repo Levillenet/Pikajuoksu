@@ -419,6 +419,16 @@ body {
   align-items: center;
   gap: 10px;
 }
+.mic-meter--inline {
+  position: static;
+  width: 80%;
+  margin: 6px auto 0;
+}
+.learn-card__live {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------- Kirjasto ---------- */
 .empty {

@@ -45,6 +45,8 @@ export function CalibrationScreen({
         recordingHint="Vihellä pilliin nyt…"
         doneText={state.whistleFreqHz !== null ? `Opetettu ✓ (sävel ${state.whistleFreqHz} Hz)` : 'Opetettu ✓'}
         countdownSec={countdownSec}
+        level={state.liveLevel}
+        freqHz={state.liveFreqHz}
         disabled={anyRecording}
         onLearn={() => void vm.teachWhistle()}
       />
@@ -56,6 +58,8 @@ export function CalibrationScreen({
         recordingHint="Laukaise pistooli nyt…"
         doneText="Opetettu ✓"
         countdownSec={countdownSec}
+        level={state.liveLevel}
+        freqHz={null}
         disabled={anyRecording}
         onLearn={() => void vm.teachGunshot()}
       />
@@ -87,6 +91,8 @@ function LearnCard({
   recordingHint,
   doneText,
   countdownSec,
+  level,
+  freqHz,
   disabled,
   onLearn,
 }: {
@@ -95,6 +101,8 @@ function LearnCard({
   recordingHint: string;
   doneText: string;
   countdownSec: number;
+  level: number;
+  freqHz: number | null;
   disabled: boolean;
   onLearn: () => void;
 }) {
@@ -107,9 +115,20 @@ function LearnCard({
 
       {status === 'recording' ? (
         <div className="learn-card__recording">
-          <div className="pulse-ring pulse-ring--small" aria-hidden />
           <p>{recordingHint}</p>
           <div className="learn-card__count">{countdownSec}</div>
+          {/* Reaaliaikainen tasomittari: jos palkki liikkuu ääntä tehdessäsi,
+              mikrofoni toimii. Jos ei liiku lainkaan, ongelma on mikrofonissa. */}
+          <div className="mic-meter mic-meter--inline" title="Mikrofonin taso">
+            <div className="mic-meter__bar" style={{ width: `${Math.min(100, level * 100)}%` }} />
+          </div>
+          <div className="learn-card__live">
+            {level > 0.03 ? (
+              <>Kuulee ääntä{freqHz ? ` · ${freqHz} Hz` : ''}</>
+            ) : (
+              <>Ei ääntä vielä…</>
+            )}
+          </div>
         </div>
       ) : (
         <button className="btn btn--secondary" disabled={disabled} onClick={onLearn}>
