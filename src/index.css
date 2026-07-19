@@ -129,13 +129,16 @@ body {
   justify-content: space-between;
   text-align: center;
 }
-.home__brand h1 {
-  font-size: 40px;
-  margin: 24px 0 4px;
+.home__logo {
+  width: min(260px, 62vw);
+  height: auto;
+  margin: 16px auto 4px;
+  display: block;
+  border-radius: 28px;
 }
 .home__brand p {
   color: var(--muted);
-  margin: 0;
+  margin: 8px 0 0;
 }
 .home__actions {
   display: flex;

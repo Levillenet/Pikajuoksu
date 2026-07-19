@@ -14,7 +14,9 @@ export function HomeScreen({ app, container }: { app: AppViewModel; container: S
   return (
     <div className="screen home">
       <header className="home__brand">
-        <h1>Pikajuoksu</h1>
+        {/* Sovelluksen logo. Kuva on public/-kansiossa, joten viitataan
+            suhteellisella polulla (toimii Capacitorin WebView'ssä). */}
+        <img className="home__logo" src="logo.png" alt="False Start Detector" />
         <p>Lähtöjen videovalvonta</p>
       </header>
 

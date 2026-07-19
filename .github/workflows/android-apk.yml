@@ -41,6 +41,11 @@ jobs:
       - name: Lisää kamera- ja mikrofonioikeudet
         run: node scripts/patch-android-manifest.mjs
 
+      - name: Aseta sovelluskuvake (logo)
+        # Kopioi valmiiksi generoidut kuvakkeet natiiviprojektiin. Korvaa
+        # Capacitorin oletuskuvakkeet kaikissa tiheyksissä + taustavärin.
+        run: cp -rv resources/android/. android/app/src/main/res/
+
       - name: Synkronoi web-build natiiviprojektiin
         run: npx cap sync android
 
