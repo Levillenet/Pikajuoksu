@@ -95,6 +95,22 @@ export function RecordingScreen({
           </div>
         )}
 
+        {/* Zoom-tason valinta: laite tarjoaa tasot kameransa mukaan.
+            Oletuksena 1× (normaali kuvakulma) laajakulman sijaan. */}
+        {state.zoomSupported && (state.phase === 'waiting' || state.phase === 'recording') && (
+          <div className="zoom-picker" role="group" aria-label="Zoom-taso">
+            {state.zoomPresets.map((z) => (
+              <button
+                key={z}
+                className={`zoom-chip ${Math.abs(state.zoomLevel - z) < 0.05 ? 'zoom-chip--active' : ''}`}
+                onClick={() => void vm.setZoom(z)}
+              >
+                {z === 1 ? '1×' : `${z}×`}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Mikrofonin tasomittari: näkyvä palaute siitä, että kuuntelu toimii. */}
         {(state.phase === 'waiting' || state.phase === 'recording') && (
           <div className="mic-meter" title="Mikrofonin taso">

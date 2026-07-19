@@ -1,6 +1,7 @@
 import { AppConfig } from '@/config';
 import type { AudioEvent, CameraSource, StartRecording } from '@/models/types';
 import { CameraRecordingService } from '@/services/camera/CameraRecordingService';
+import { CameraZoomController } from '@/services/camera/CameraZoomController';
 import type { ServiceContainer } from '@/services/container';
 import { Observable } from '@/utils/Observable';
 import { createLogger } from '@/utils/logger';
@@ -27,6 +28,12 @@ export interface RecordingState {
   lastRecordingId: string | null;
   /** Onko esikatselustriimi valmis näytettäväksi. */
   previewReady: boolean;
+  /** Tukeeko laite kameran zoomin säätöä. */
+  zoomSupported: boolean;
+  /** Nykyinen zoom-taso (esim. 1 = normaali kuvakulma). */
+  zoomLevel: number;
+  /** Valittavat zoom-tasot laitteen mukaan (esim. [0.6, 1, 2]). */
+  zoomPresets: number[];
 }
 
 const INITIAL: RecordingState = {
@@ -38,6 +45,9 @@ const INITIAL: RecordingState = {
   error: null,
   lastRecordingId: null,
   previewReady: false,
+  zoomSupported: false,
+  zoomLevel: 1,
+  zoomPresets: [1],
 };
 
 /**
@@ -52,6 +62,7 @@ const INITIAL: RecordingState = {
  */
 export class RecordingViewModel extends Observable<RecordingState> {
   private readonly camera = new CameraRecordingService();
+  private readonly zoom = new CameraZoomController();
   private sharedStream: MediaStream | null = null;
   private recordingStartMonotonicMs = 0;
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
@@ -87,6 +98,18 @@ export class RecordingViewModel extends Observable<RecordingState> {
       this.sharedStream = await CameraRecordingService.acquireStream();
       this.setState({ previewReady: true });
 
+      // Kameran zoom: monet puhelimet valitsevat oletuksena laajakulman.
+      // Luetaan laitteen tukemat zoom-tasot ja asetetaan oletukseksi 1×
+      // (normaali kuvakulma). Käyttäjä voi vaihtaa tasoa UI:sta.
+      this.zoom.attach(this.sharedStream);
+      const applied = await this.zoom.applyDefaultZoom();
+      const cap = this.zoom.getCapability();
+      this.setState({
+        zoomSupported: cap.supported,
+        zoomLevel: applied,
+        zoomPresets: cap.presets,
+      });
+
       // Käynnistä äänentunnistus samasta striimistä.
       this.container.audio.resetDetectors();
       await this.container.audio.start(this.sharedStream);
@@ -111,6 +134,15 @@ export class RecordingViewModel extends Observable<RecordingState> {
       const msg = err instanceof Error ? err.message : String(err);
       this.fail(`Kameran tai mikrofonin käynnistys epäonnistui: ${msg}`);
     }
+  }
+
+  /**
+   * Asettaa kameran zoom-tason. Toimii sekä pilliä odottaessa että
+   * tallennuksen aikana. Rajataan laitteen sallimaan alueeseen.
+   */
+  async setZoom(level: number): Promise<void> {
+    const applied = await this.zoom.setZoom(level);
+    this.setState({ zoomLevel: applied });
   }
 
   /** Pilli havaittu → aloita videon tallennus automaattisesti. */
@@ -247,6 +279,7 @@ export class RecordingViewModel extends Observable<RecordingState> {
   private async teardownCapture(): Promise<void> {
     this.unsub.forEach((u) => u());
     this.unsub = [];
+    this.zoom.detach();
     await this.container.audio.stop(true);
     this.sharedStream?.getTracks().forEach((t) => t.stop());
     this.sharedStream = null;

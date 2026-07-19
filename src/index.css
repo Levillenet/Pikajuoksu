@@ -299,6 +299,33 @@ body {
   color: var(--ok);
 }
 
+.zoom-picker {
+  position: absolute;
+  bottom: calc(40px + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px;
+  border-radius: 999px;
+}
+.zoom-chip {
+  min-width: 44px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.zoom-chip--active {
+  background: #fff;
+  color: #000;
+}
+
 .mic-meter {
   position: absolute;
   bottom: calc(20px + var(--safe-bottom));
