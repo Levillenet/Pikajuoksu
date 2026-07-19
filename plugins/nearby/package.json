@@ -1,0 +1,25 @@
+{
+  "name": "capacitor-nearby-connections",
+  "version": "1.0.0",
+  "description": "Google Nearby Connections -integraatio False Start Detector -sovellukselle (Camera/Viewer, Wi-Fi Direct).",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "index.js",
+    "index.d.ts"
+  ],
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "nearby-connections"
+  ],
+  "author": "False Start Detector",
+  "license": "MIT"
+}

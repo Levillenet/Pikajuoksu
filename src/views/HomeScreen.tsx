@@ -1,5 +1,6 @@
 import type { AppViewModel } from '@/viewmodels/AppViewModel';
 import type { ServiceContainer } from '@/services/container';
+import { ConnectionBadge } from './components/ConnectionBadge';
 
 /**
  * Etusivu. Kaksi päätoimintoa: VALMIS ja VIDEOT.
@@ -13,6 +14,14 @@ export function HomeScreen({ app, container }: { app: AppViewModel; container: S
 
   return (
     <div className="screen home">
+      {/* Ylärivi: yhteyden tila + asetukset. */}
+      <div className="home__topbar">
+        <ConnectionBadge container={container} />
+        <button className="icon-btn home__settings" title="Asetukset" onClick={() => app.goSettings()}>
+          ⚙
+        </button>
+      </div>
+
       <header className="home__brand">
         {/* Sovelluksen logo. Kuva on public/-kansiossa, joten viitataan
             suhteellisella polulla (toimii Capacitorin WebView'ssä). */}

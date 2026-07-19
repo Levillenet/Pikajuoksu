@@ -345,6 +345,87 @@ body {
   transition: width 0.08s linear;
 }
 
+/* ---------- Yhteyden tilakuvake ---------- */
+.home__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+}
+.home__settings {
+  font-size: 22px;
+}
+.conn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elev);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.conn-badge__dot {
+  font-size: 10px;
+  line-height: 1;
+}
+.conn-badge__pct {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.conn-badge--big {
+  font-size: 16px;
+  padding: 10px 16px;
+  gap: 10px;
+}
+
+/* ---------- Asetukset / roolit ---------- */
+.settings__section {
+  margin: 16px 0 4px;
+  font-size: 18px;
+}
+.role-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.role-card {
+  text-align: left;
+  background: var(--bg-elev);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  padding: 16px;
+  color: var(--text);
+  cursor: pointer;
+}
+.role-card--active {
+  border-color: var(--primary);
+  background: var(--bg-elev-2);
+}
+.role-card__icon {
+  font-size: 28px;
+}
+.role-card__title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+.role-card__desc {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+.settings__status {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ---------- Etusivun linkkipainike ---------- */
 .link-btn {
   background: none;

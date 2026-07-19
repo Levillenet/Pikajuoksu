@@ -239,6 +239,16 @@ export class RecordingViewModel extends Observable<RecordingState> {
       await this.container.repository.upsert(recording);
       log.info('Tallenne valmis ja tallennettu', { id });
 
+      // Lähiyhteys: jos rooli on Camera ja Viewer on yhdistetty, lähetä video
+      // automaattisesti. Ei vaikuta paikalliseen tallennukseen eikä kaada
+      // tallennusketjua, vaikka lähetys epäonnistuisi.
+      try {
+        const uri = await this.container.storage.getFileUri(videoPath);
+        void this.container.nearby.onRecordingSaved(recording, uri);
+      } catch (err) {
+        log.warn('Videon lähetystä lähiyhteydellä ei voitu aloittaa', err);
+      }
+
       this.setState({ phase: 'idle', lastRecordingId: id, remainingMs: 0 });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

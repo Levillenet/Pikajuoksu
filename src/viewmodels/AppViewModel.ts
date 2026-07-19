@@ -4,6 +4,7 @@ import { Observable } from '@/utils/Observable';
 export type Screen =
   | { name: 'home' }
   | { name: 'calibration' }
+  | { name: 'settings' }
   | { name: 'recording' }
   | { name: 'library' }
   | { name: 'player'; recordingId: string };
@@ -28,6 +29,10 @@ export class AppViewModel extends Observable<AppState> {
 
   goCalibration(): void {
     this.setState({ screen: { name: 'calibration' } });
+  }
+
+  goSettings(): void {
+    this.setState({ screen: { name: 'settings' } });
   }
 
   goRecording(): void {

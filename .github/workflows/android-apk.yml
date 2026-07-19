@@ -43,6 +43,9 @@ jobs:
       - name: Aseta sovelluksen nimi
         run: node scripts/patch-android-appname.mjs
 
+      - name: Lisää Kotlin-tuki (Nearby-plugin)
+        run: node scripts/patch-android-kotlin.mjs
+
       - name: Aseta sovelluskuvake (logo)
         # Kopioi valmiiksi generoidut kuvakkeet natiiviprojektiin. Korvaa
         # Capacitorin oletuskuvakkeet kaikissa tiheyksissä + taustavärin.

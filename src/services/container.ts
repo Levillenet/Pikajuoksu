@@ -1,6 +1,9 @@
 import { AudioDetectionService } from './audio/AudioDetectionService';
 import { AudioProfileStore } from './audio/AudioProfileStore';
 import { CalibrationService } from './audio/CalibrationService';
+import { ConnectionManager } from './nearby/ConnectionManager';
+import { NearbyCoordinator } from './nearby/NearbyCoordinator';
+import { SettingsStore } from './settings/SettingsStore';
 import { RecordingRepository } from './storage/RecordingRepository';
 import { StorageService } from './storage/StorageService';
 import { MultiCameraSyncService } from './sync/MultiCameraSyncService';
@@ -25,6 +28,12 @@ export class ServiceContainer {
   readonly profiles = new AudioProfileStore();
   /** Äänten opettaminen (kalibrointi). */
   readonly calibration = new CalibrationService();
+  /** Pysyvät asetukset (mm. laitteen rooli Camera/Viewer). */
+  readonly settings = new SettingsStore();
+  /** Lähiyhteys (Nearby Connections) – kaikki yhteyskoodi täällä. */
+  readonly connection = new ConnectionManager();
+  /** Kytkee lähiyhteyden tallennukseen ja kirjastoon (Camera/Viewer). */
+  readonly nearby = new NearbyCoordinator(this.connection, this.repository, this.settings);
 
   /** Tehdas pose-moottorille (oletuksena MediaPipe). Vaihdettavissa. */
   createPoseEngine(): PoseEngine {
