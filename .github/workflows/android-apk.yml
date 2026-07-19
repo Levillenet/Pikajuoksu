@@ -1,13 +1,12 @@
 name: Rakenna Android APK
 
-# Kääntää testattavan debug-APK:n. Käynnistyy jokaisella pushilla sekä
-# manuaalisesti (workflow_dispatch) GitHubin Actions-välilehdeltä.
+# Kääntää testattavan debug-APK:n.
+# HUOM: käännös EI käynnisty automaattisesti pushilla. Se tehdään vain
+# pyydettäessä – manuaalisesti GitHubin Actions-välilehden "Run workflow"
+# -painikkeella (workflow_dispatch). Näin useita muutoksia voi kerätä yhteen
+# ja kääntää vasta kun halutaan.
 on:
-  push:
-    branches:
-      - claude/sprint-false-start-detection-yl6gs6
-      - main
-  workflow_dispatch: # Sallii käynnistyksen käsin "Run workflow" -painikkeella.
+  workflow_dispatch: # Vain manuaalinen käynnistys.
 
 jobs:
   build-apk:
