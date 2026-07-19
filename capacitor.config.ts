@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // Capacitor-konfiguraatio. Yksi koodipohja tuottaa sekä Android- että iOS-sovelluksen.
 const config: CapacitorConfig = {
   appId: 'fi.pikajuoksu.startwatch',
-  appName: 'Pikajuoksu',
+  appName: 'False Start Detector',
   webDir: 'dist',
   // Taustalla toimivat ääni- ja kamera-API:t vaativat pysyvät oikeudet.
   plugins: {
