@@ -7,9 +7,10 @@ dist-ssr/
 *.local
 *.tsbuildinfo
 
-# Capacitor natiivit projektit (generoidaan `npx cap add` -komennolla)
-android/
-ios/
+# Capacitor natiivit projektit (generoidaan `npx cap add` -komennolla).
+# Vain juuren projektit – ei esim. resources/android/ (kuvakelähteet).
+/android/
+/ios/
 
 # Editorit
 .vscode/*
